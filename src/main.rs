@@ -3,13 +3,17 @@ use chess::MoveGen;
 use chess::ChessMove;
 use chess::BoardStatus;
 use chess::Color;
+
 use std::io;
+
+use rand::Rng;
 
 trait Player {
     fn get_move(&self ,board: &Board) -> ChessMove;
 }
 
 struct ConsolePlayer {}
+struct RandomPlayer {}
 
 fn get_input(size: usize) -> usize {
     let mut input = String::new();
@@ -40,10 +44,19 @@ impl Player for ConsolePlayer {
     }
 }
 
+impl Player for RandomPlayer {
+    fn get_move(&self, board: &Board) -> ChessMove {
+        let mut moves = MoveGen::new_legal(&board);
+        let mut rng = rand::thread_rng();
+        let m = moves.nth(rng.gen_range(0, moves.len())).unwrap();
+        return m;
+    }
+}
+
 fn main() {
     let mut board = Board::default();
     let white = ConsolePlayer{};
-    let black = ConsolePlayer{};
+    let black = RandomPlayer{};
     while board.status() == BoardStatus::Ongoing {
         match board.side_to_move() {
             Color::White => board = board.make_move_new(white.get_move(&board)),
