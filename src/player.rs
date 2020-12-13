@@ -4,6 +4,7 @@ use chess::Board;
 use chess::MoveGen;
 use chess::ChessMove;
 use chess::Color;
+use chess::BoardStatus;
 
 use rand::Rng;
 
@@ -11,8 +12,9 @@ pub trait Player {
     fn get_move(&self ,board: &Board) -> ChessMove;
 }
 
-pub struct ConsolePlayer {}
-pub struct RandomPlayer {}
+pub struct ConsolePlayer;
+pub struct RandomPlayer;
+pub struct GreedyPlayer;
 
 fn get_input(size: usize) -> usize {
     let mut input = String::new();
@@ -52,7 +54,54 @@ impl Player for RandomPlayer {
     }
 }
 
-fn print_board(board: &Board) {
+impl Player for GreedyPlayer {
+    fn get_move(&self, board: &Board) -> ChessMove {
+        let mut moves = MoveGen::new_legal(&board);
+        let mut greedy_move = moves.next().unwrap();
+        for m in moves.into_iter() {
+            let test_board = board.make_move_new(m);
+            let greedy_board = board.make_move_new(greedy_move);
+            let better = match board.side_to_move() {
+                Color::White => board_score(&test_board) > board_score(&greedy_board),
+                Color::Black => board_score(&test_board) < board_score(&greedy_board),
+            };
+            if better {
+                greedy_move = m;
+            }
+        }
+        return greedy_move;
+    }
+}
+
+fn board_score(board: &Board) -> i32 {
+    if board.status() == BoardStatus::Checkmate {
+        match board.side_to_move() {
+            Color::White => return std::i32::MIN,
+            Color::Black => return std::i32::MAX,
+        }
+    }
+    let fen = format!("{}", board);
+    let mut score = 0;
+    for c in fen.chars() {
+        match c {
+            'p' => score = score - 1,
+            'n' => score = score - 3,
+            'b' => score = score - 3,
+            'r' => score = score - 5,
+            'q' => score = score - 9,
+            'P' => score = score + 1,
+            'N' => score = score + 3,
+            'B' => score = score + 3,
+            'R' => score = score + 5,
+            'Q' => score = score + 9,
+            ' ' => break,
+            _   => (),
+        }
+    }
+    score
+}
+
+pub fn print_board(board: &Board) {
     println!("    a   b   c   d   e   f   g   h");
     let fen = format!("{}", board);
 
@@ -80,5 +129,6 @@ fn print_board(board: &Board) {
     print!("\n");
     println!("  {}", "-".repeat(33));
     println!("    a   b   c   d   e   f   g   h");
-    println!("{}'s turn to move.\n", if board.side_to_move() == Color::White {"White"} else {"Black"});
+    println!("Current board score: {}", board_score(&board));
+    println!("{:?}'s turn to move.\n", board.side_to_move());
 }

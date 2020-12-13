@@ -8,16 +8,23 @@ mod player;
 
 fn main() {
     let mut board = Board::default();
-    let white = player::ConsolePlayer{};
-    let black = player::RandomPlayer{};
+    let white = player::RandomPlayer;
+    let black = player::GreedyPlayer;
+    let mut move_count = 0;
     while board.status() == BoardStatus::Ongoing {
+        player::print_board(&board);
+        if move_count > 10000 {
+            break;
+        }
         match board.side_to_move() {
             Color::White => board = board.make_move_new(white.get_move(&board)),
             Color::Black => board = board.make_move_new(black.get_move(&board)),
         }
+        move_count = move_count + 1;
     }
+    player::print_board(&board);
     match board.status() {
-        BoardStatus::Checkmate => println!("Checkmate! {} wins!", if board.side_to_move() == Color::White {"White"} else{"Black"}),
+        BoardStatus::Checkmate => println!("Checkmate! {:?} loses!", board.side_to_move()),
         BoardStatus::Stalemate => println!("Stalemate, game is a draw."),
         BoardStatus::Ongoing   => println!("How did I end up here?"),
     }
