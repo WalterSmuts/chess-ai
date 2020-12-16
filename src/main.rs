@@ -8,8 +8,8 @@ mod player;
 
 fn main() {
     let mut board = Board::default();
-    let white = player::RandomPlayer;
-    let black = player::GreedyPlayer;
+    let white = player::ConsolePlayer;
+    let black = player::TreePlayer{depth: 2};
     let mut move_count = 0;
     while board.status() == BoardStatus::Ongoing {
         player::print_board(&board);
@@ -24,7 +24,7 @@ fn main() {
     }
     player::print_board(&board);
     match board.status() {
-        BoardStatus::Checkmate => println!("Checkmate! {:?} loses!", board.side_to_move()),
+        BoardStatus::Checkmate => println!("Checkmate! {:?} loses in {} moves!", board.side_to_move(), move_count),
         BoardStatus::Stalemate => println!("Stalemate, game is a draw."),
         BoardStatus::Ongoing   => println!("How did I end up here?"),
     }

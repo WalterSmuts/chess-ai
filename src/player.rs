@@ -15,9 +15,14 @@ pub trait Player {
 pub struct ConsolePlayer;
 pub struct RandomPlayer;
 pub struct GreedyPlayer;
+pub struct TreePlayer{
+    pub depth: i32,
+}
 
-fn get_input(size: usize) -> usize {
+fn get_input(board: &Board) -> usize {
+    let moves = MoveGen::new_legal(&board);
     let mut input = String::new();
+    let size = moves.len();
     println!("Choose a move from 0 to {}", size - 1);
     io::stdin().read_line(&mut input).unwrap();
     if let Ok(n) = input.trim().parse() {
@@ -25,8 +30,17 @@ fn get_input(size: usize) -> usize {
             return n;
         }
     }
+
+    let mut i = 0;
+    for m in moves.into_iter() {
+        if format!("{}", m) == input.trim() {
+            return i;
+        }
+        i = i + 1;
+    }
+
     println!("Try again...");
-    return get_input(size);
+    get_input(&board)
 }
 
 impl Player for ConsolePlayer {
@@ -40,7 +54,7 @@ impl Player for ConsolePlayer {
             i = i + 1;
         }
         let mut moves = MoveGen::new_legal(&board);
-        let m = moves.nth(get_input(moves.len())).unwrap();
+        let m = moves.nth(get_input(&board)).unwrap();
         return m;
     }
 }
@@ -73,6 +87,41 @@ impl Player for GreedyPlayer {
     }
 }
 
+impl Player for TreePlayer {
+    fn get_move(&self, board: &Board) -> ChessMove {
+        let mut moves = MoveGen::new_legal(&board);
+        let simulated_player = get_player(self.depth);
+        let mut greedy_move = moves.next().unwrap();
+        for m in moves.into_iter() {
+            let mut greedy_board = board.make_move_new(greedy_move);
+            let mut test_board = board.make_move_new(m);
+
+            if test_board.status() != BoardStatus::Checkmate {
+                test_board = test_board.make_move_new(simulated_player.get_move(&test_board));
+            }
+            if greedy_board.status() != BoardStatus::Checkmate {
+                greedy_board = greedy_board.make_move_new(simulated_player.get_move(&greedy_board));
+            }
+            let better = match board.side_to_move() {
+                Color::White => board_score(&test_board) > board_score(&greedy_board),
+                Color::Black => board_score(&test_board) < board_score(&greedy_board),
+            };
+            if better {
+                greedy_move = m;
+            }
+        }
+        return greedy_move;
+    }
+}
+
+fn get_player(depth: i32) -> Box<dyn Player> {
+    if depth == 0 {
+        Box::new(GreedyPlayer)
+    } else {
+        Box::new(TreePlayer{depth: depth -1})
+    }
+}
+
 fn board_score(board: &Board) -> i32 {
     if board.status() == BoardStatus::Checkmate {
         match board.side_to_move() {
@@ -81,7 +130,7 @@ fn board_score(board: &Board) -> i32 {
         }
     }
     let fen = format!("{}", board);
-    let mut score = 0;
+    let mut score:i32 = 0;
     for c in fen.chars() {
         match c {
             'p' => score = score - 1,
@@ -98,6 +147,7 @@ fn board_score(board: &Board) -> i32 {
             _   => (),
         }
     }
+    score = score * 100 + MoveGen::new_legal(&board).len() as i32;
     score
 }
 
